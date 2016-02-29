@@ -28,18 +28,11 @@
 	}
 	
 	//start and end weeks
-	$date_start_week = new DateTime($start_date);
-	$start_week = $date_start_week->format("W");
-	$date_end_week = new DateTime($end_date);
-	$end_week = $date_end_week->format("W");
-	$total_number_of_weeks = $end_week - $start_week;
+	$date_start_day = new DateTime($start_date);
+	$date_end_day = new DateTime($end_date);
+	$difference = $date_start_day->diff($date_end_day);
+	$total_number_of_days = $difference->days;
 
-
-	//check if not in the same year
-	if($total_number_of_weeks < 0 ){
-		$number_of_weeks = getIsoWeeksInYear(explode('-', $start_date)[0]);
-		$total_number_of_weeks = ($number_of_weeks-$start_week+1) + $end_week;
-	}
 
 	//get total results with one query (one to rule them all)
 	$one_query = $wpdb->get_row("SELECT
@@ -59,66 +52,140 @@
 	$total_webinarPH 	= $one_query['WEBINARPH']; 	//Petah
 	$total_webinarMS 	= $one_query['WEBINARMS']; 	//Moskva
 	$total_webinarVS 	= $one_query['WEBINARVS']; 	//voskresenya
-
+	
+	
+	/* BB Dev queries to get all users ids from each item type */
+	$users['FORUM'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = forum)', ARRAY_A);
+	$users['ARCHIVE'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = array)', ARRAY_A);
+	$users['WEBINARTT'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarTT)', ARRAY_A);
+	$users['WEBINARSF'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarSF)', ARRAY_A);
+	$users['WEBINARPH'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarPH)', ARRAY_A);
+	$users['WEBINARMS'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarMS)', ARRAY_A);
+	$users['WEBINARVS'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarVS)', ARRAY_A);
+	
 	/*
-	* Loop from the start of the courses till the last record on weekly base 
+	$users['FORUM'] = $wpdb->get_row('SELECT history.id, users.user_login, signups.meta FROM wp_signups AS signups 
+     INNER JOIN wp_users AS users ON signups.user_login = users.user_login 
+	 INNER JOIN wp_namaste_history AS history ON users.user_id = history.user_id WHERE (history.for_item_id ='.$lesson_id.' 
+	 AND history.for_item_type = forum)', ARRAY_A);
+	
+	$users['ARCHIVE'] = $wpdb->get_row('SELECT history.id, users.user_login, signups.meta FROM wp_signups AS signups 
+     INNER JOIN wp_users AS users ON signups.user_login = users.user_login 
+	 INNER JOIN wp_namaste_history AS history ON users.user_id = history.user_id WHERE (history.for_item_id ='.$lesson_id.' 
+	 AND history.for_item_type = archive)', ARRAY_A);
+	
+	$users['WEBINARTT'] = $wpdb->get_row('SELECT history.id, users.user_login, signups.meta FROM wp_signups AS signups 
+     INNER JOIN wp_users AS users ON signups.user_login = users.user_login 
+	 INNER JOIN wp_namaste_history AS history ON users.user_id = history.user_id WHERE (history.for_item_id ='.$lesson_id.' 
+	 AND history.for_item_type = webinarTT)', ARRAY_A);
+
+	$users['WEBINARSF'] = $wpdb->get_row('SELECT history.id, users.user_login, signups.meta FROM wp_signups AS signups 
+     INNER JOIN wp_users AS users ON signups.user_login = users.user_login 
+	 INNER JOIN wp_namaste_history AS history ON users.user_id = history.user_id WHERE (history.for_item_id ='.$lesson_id.' 
+	 AND history.for_item_type = webinarSF)', ARRAY_A);
+
+	$users['WEBINARPH'] = $wpdb->get_row('SELECT history.id, users.user_login, signups.meta FROM wp_signups AS signups 
+     INNER JOIN wp_users AS users ON signups.user_login = users.user_login 
+	 INNER JOIN wp_namaste_history AS history ON users.user_id = history.user_id WHERE (history.for_item_id ='.$lesson_id.' 
+	 AND history.for_item_type = webinarPH)', ARRAY_A);
+
+	$users['WEBINARMS'] = $wpdb->get_row('SELECT history.id, users.user_login, signups.meta FROM wp_signups AS signups 
+     INNER JOIN wp_users AS users ON signups.user_login = users.user_login 
+	 INNER JOIN wp_namaste_history AS history ON users.user_id = history.user_id WHERE (history.for_item_id ='.$lesson_id.' 
+	 AND history.for_item_type = webinarMS)', ARRAY_A);
+
+	$users['WEBINARVS'] = $wpdb->get_row('SELECT history.id, users.user_login, signups.meta FROM wp_signups AS signups 
+     INNER JOIN wp_users AS users ON signups.user_login = users.user_login 
+	 INNER JOIN wp_namaste_history AS history ON users.user_id = history.user_id WHERE (history.for_item_id ='.$lesson_id.' 
+	 AND history.for_item_type = webinarVS)', ARRAY_A);
 	*/
-	$weeks = array();
-	$ts = strtotime($start_date);
-    $start_week_date = (date('w', $ts) == 0) ? $ts : strtotime('last monday', $ts);
-	$end_week_date = strtotime('+6 day', $start_week_date);
-
-	for ( $i = 0; $i <= $total_number_of_weeks; $i++) {
+	
+	/*
+	* Loop from the start of the courses till the last record on dayly base 
+	*/
+	$interval = DateInterval::createFromDateString('1 day');
+	$period = new DatePeriod($date_start_day, $interval, $date_end_day);
+	
+	foreach ( $period as $date) {
 		
-		if ($i !=0) {
-			$start_week_date = strtotime("+1 day", $end_week_date);
-			$end_week_date = strtotime('+6 day', $start_week_date);
-		}
-
-		$weeks[$i]['start']	= date('Y-m-d',$start_week_date);
-		$weeks[$i]['end']	= date('Y-m-d',$end_week_date);
-
-		$request = get_statistics($weeks[$i]['start'],$weeks[$i]['end'],$lesson_id);
+		// init data fields
+		$days[$date->format('Y-m-d')]['header'] = $date->format('Y-m-d');
+		$days[$date->format('Y-m-d')]['male']		= 0;
+		$days[$date->format('Y-m-d')]['female']		= 0;
+		$days[$date->format('Y-m-d')]['18-24']		= 0;
+		$days[$date->format('Y-m-d')]['25-34']		= 0;
+		$days[$date->format('Y-m-d')]['35-44']		= 0;
+		$days[$date->format('Y-m-d')]['45-54']		= 0;
+		$days[$date->format('Y-m-d')]['55plus']		= 0;
+		
+		$request = get_statistics($date,$lesson_id);
 		if (count($request)==0) {
-			$weeks[$i]['archive']  	= 0;
-			$weeks[$i]['forum']		= 0;
-			$weeks[$i]['webinarTT']	= 0;
-			$weeks[$i]['webinarSF']	= 0;
-			$weeks[$i]['webinarPH']	= 0;
-			$weeks[$i]['webinarMS']	= 0;
-			$weeks[$i]['webinarVS']	= 0;
+			$days[$date->format('Y-m-d')]['archive']  	= 0;
+			$days[$date->format('Y-m-d')]['forum']		= 0;
+			$days[$date->format('Y-m-d')]['webinarTT']	= 0;
+			$days[$date->format('Y-m-d')]['webinarSF']	= 0;
+			$days[$date->format('Y-m-d')]['webinarPH']	= 0;
+			$days[$date->format('Y-m-d')]['webinarMS']	= 0;
+			$days[$date->format('Y-m-d')]['webinarVS']	= 0;
+			$days[$date->format('Y-m-d')]['male']		= 0;
+			$days[$date->format('Y-m-d')]['female']		= 0;
+			$days[$date->format('Y-m-d')]['18-24']		= 0;
+			$days[$date->format('Y-m-d')]['25-34']		= 0;
+			$days[$date->format('Y-m-d')]['35-44']		= 0;
+			$days[$date->format('Y-m-d')]['45-54']		= 0;
+			$days[$date->format('Y-m-d')]['55plus']		= 0;
+			
 		} else{ 
 
 			foreach ($request as $element) {
 				switch ($element["for_item_type"]) {
 					case 'archive':
-						$weeks[$i]['archive'] = $element["COUNT(*)"];
+						$days[$date->format('Y-m-d')]['archive'] = $element["COUNT(*)"];
 						break;
-					
 					case 'forum':
-						$weeks[$i]['forum'] = $element["COUNT(*)"];
+						$days[$date->format('Y-m-d')]['forum'] = $element["COUNT(*)"];
 						break;
-
 					case 'webinarTT':
-						$weeks[$i]['webinarTT'] = $element["COUNT(*)"];
+						$days[$date->format('Y-m-d')]['webinarTT'] = $element["COUNT(*)"];
 						break;
-
 					case 'webinarSF':
-						$weeks[$i]['webinarSF'] = $element["COUNT(*)"];
+						$days[$date->format('Y-m-d')]['webinarSF'] = $element["COUNT(*)"];
 						break;
 					case 'webinarPH':
-						$weeks[$i]['webinarPH'] = $element["COUNT(*)"];
+						$days[$date->format('Y-m-d')]['webinarPH'] = $element["COUNT(*)"];
 						break;
-
 					case 'webinarMS':
-						$weeks[$i]['webinarMS'] = $element["COUNT(*)"];
+						$days[$date->format('Y-m-d')]['webinarMS'] = $element["COUNT(*)"];
 						break;
-
 					case 'webinarVS':
-						$weeks[$i]['webinarVS'] = $element["COUNT(*)"];
+						$days[$date->format('Y-m-d')]['webinarVS'] = $element["COUNT(*)"];
 						break;
 				}
 			}
+		// Processing users count by gender and age groups
+		$users = get_users_by_date($date, $lesson_id, 'archive');
+		foreach ($users as $user) {
+			$gender = xprofile_get_field_data('gender', $user['user_id']);
+			if ($gender == "male")
+				$days[$date->format('Y-m-d')]['male']++;
+			else if ($gender == "female")
+				$days[$date->format('Y-m-d')]['female']++;
+			
+			$age = xprofile_get_field_data('age', $user['user_id']);
+			
+			if ($age >= 18 && $age <= 24)
+				$days[$date->format('Y-m-d')]['18-24']++;
+			elseif ($age >= 25 && $age <= 34)
+				$days[$date->format('Y-m-d')]['25-34']++;
+			elseif ($age >= 35 && $age <= 44)
+				$days[$date->format('Y-m-d')]['35-44']++;
+			elseif ($age >= 45 && $age <= 54)
+				$days[$date->format('Y-m-d')]['45-54']++;
+			elseif ($age >= 55)
+				$days[$date->format('Y-m-d')]['55plus']++;
+			
+		}
+		
 		}
 
 	}
@@ -140,7 +207,7 @@
 
 	// Set document properties
 	$objPHPExcel->getProperties()->setCreator("Kabala")
-								 ->setLastModifiedBy("Maarten Balliauw")
+								 ->setLastModifiedBy("Som (c)")
 								 ->setTitle("Office 2007 XLSX Test Document")
 								 ->setSubject("Office 2007 XLSX Test Document")
 								 ->setDescription("Test document for Office 2007 XLSX, generated using PHP classes.")
@@ -176,50 +243,57 @@
 				->setCellValue('C6', $total_webinarVS)
 				->setCellValue('C7', $total_archive)
 				->setCellValue('C8', $total_forum)
+				->setCellValue('C9', $days[$date->format('Y-m-d')]['male'])
+				->setCellValue('C10', $days[$date->format('Y-m-d')]['female'])
+				->setCellValue('C11', $days[$date->format('Y-m-d')]['18-24'])
+				->setCellValue('C12', $days[$date->format('Y-m-d')]['25-34'])
+				->setCellValue('C13', $days[$date->format('Y-m-d')]['34-45'])
+				->setCellValue('C14', $days[$date->format('Y-m-d')]['44-55'])
+				->setCellValue('C15', $days[$date->format('Y-m-d')]['55plus'])
 				;
 
-	// Add single weeks
+	// Add single day column
 	$letter = "C";
-	foreach ($weeks as $week) {
+	foreach ($days as $day) {
 
-		if (!array_key_exists('webinarTT', $week)) {
-			$week['webinarTT']=0;
+		if (!array_key_exists('webinarTT', $day)) {
+			$day['webinarTT']=0;
 		}
 
-		if (!array_key_exists('webinarSF', $week)) {
-			$week['webinarSF']=0;
+		if (!array_key_exists('webinarSF', $day)) {
+			$day['webinarSF']=0;
 		}
 
-		if (!array_key_exists('webinarPH', $week)) {
-			$week['webinarPH']=0;
+		if (!array_key_exists('webinarPH', $day)) {
+			$day['webinarPH']=0;
 		}
 
-		if (!array_key_exists('webinarMS', $week)) {
-			$week['webinarMS']=0;
+		if (!array_key_exists('webinarMS', $day)) {
+			$day['webinarMS']=0;
 		}
 
-		if (!array_key_exists('webinarVS', $week)) {
-			$week['webinarVS']=0;
+		if (!array_key_exists('webinarVS', $day)) {
+			$day['webinarVS']=0;
 		}
 
-		if (!array_key_exists('archive', $week)) {
-			$week['archive']=0;
+		if (!array_key_exists('archive', $day)) {
+			$day['archive']=0;
 		}
 
-		if (!array_key_exists('forum', $week)) {
-			$week['forum']=0;
+		if (!array_key_exists('forum', $day)) {
+			$day['forum']=0;
 		}
 
 		$letter++;
 		$objPHPExcel->setActiveSheetIndex(0)
-				->setCellValue($letter.'1', $week['start'].' - '.$week['end'])
-				->setCellValue($letter.'2', $week['webinarTT'])
-				->setCellValue($letter.'3', $week['webinarSF'])
-				->setCellValue($letter.'4', $week['webinarPH'])
-				->setCellValue($letter.'5', $week['webinarMS'])
-				->setCellValue($letter.'6', $week['webinarVS'])
-				->setCellValue($letter.'7', $week['archive'])
-				->setCellValue($letter.'8', $week['forum'])
+				->setCellValue($letter.'1', $day['header'])
+				->setCellValue($letter.'2', $day['webinarTT'])
+				->setCellValue($letter.'3', $day['webinarSF'])
+				->setCellValue($letter.'4', $day['webinarPH'])
+				->setCellValue($letter.'5', $day['webinarMS'])
+				->setCellValue($letter.'6', $day['webinarVS'])
+				->setCellValue($letter.'7', $day['archive'])
+				->setCellValue($letter.'8', $day['forum'])
 				;
 	}
 
@@ -249,19 +323,26 @@
 	exit;
 
 
-function get_statistics($start_date, $end_date,$lesson_id){
+function get_statistics($the_date, $lesson_id){
 	global $wpdb;
 
-	$sql = "SELECT `for_item_type`, COUNT(*) FROM " . $wpdb->prefix . "namaste_history WHERE `date`BETWEEN '".$start_date."' AND '".$end_date."' AND `for_item_id` = ".$lesson_id." GROUP BY `for_item_type`";
+	$sql = "SELECT `for_item_type`, COUNT(*) FROM " . $wpdb->prefix . "namaste_history WHERE `date` = '".$the_date->format('Y-m-d')."' AND `for_item_id` = ".$lesson_id." GROUP BY `for_item_type`";
 
 	$result = $wpdb->get_results($sql,ARRAY_A);
 
 	return $result;
 }
 
+
+function get_users_by_date($the_date, $lesson_id){
+	
+	return $wpdb->get_results('SELECT user_id FROM wp_namaste_history WHERE (date = \''.$the_date->format('Y-m-d').'\' AND for_item_id ='.$lesson_id.')', ARRAY_A);	
+	
+}
+
 // returns weeks in a year
-function getIsoWeeksInYear($year) {
+function getIsoDaysInYear($year) {
     $date = new DateTime;
     $date->setISODate($year, 53);
-    return ($date->format("W") === "53" ? 53 : 52);
+    return ($date->format("W") === "53" ? 366 : 365);
 }
