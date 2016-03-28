@@ -55,13 +55,13 @@
 	
 	
 	/* BB Dev queries to get all users ids from each item type */
-	$users['FORUM'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = forum)', ARRAY_A);
-	$users['ARCHIVE'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = array)', ARRAY_A);
-	$users['WEBINARTT'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarTT)', ARRAY_A);
-	$users['WEBINARSF'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarSF)', ARRAY_A);
-	$users['WEBINARPH'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarPH)', ARRAY_A);
-	$users['WEBINARMS'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarMS)', ARRAY_A);
-	$users['WEBINARVS'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.'AND for_item_type = webinarVS)', ARRAY_A);
+	$users['FORUM'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.' AND for_item_type = forum)', ARRAY_A);
+	$users['ARCHIVE'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.' AND for_item_type = array)', ARRAY_A);
+	$users['WEBINARTT'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.' AND for_item_type = webinarTT)', ARRAY_A);
+	$users['WEBINARSF'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.' AND for_item_type = webinarSF)', ARRAY_A);
+	$users['WEBINARPH'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.' AND for_item_type = webinarPH)', ARRAY_A);
+	$users['WEBINARMS'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.' AND for_item_type = webinarMS)', ARRAY_A);
+	$users['WEBINARVS'] = $wpdb->get_row('SELECT user_id FROM wp_namaste_history WHERE (for_item_id ='.$lesson_id.' AND for_item_type = webinarVS)', ARRAY_A);
 	
 	/*
 	$users['FORUM'] = $wpdb->get_row('SELECT history.id, users.user_login, signups.meta FROM wp_signups AS signups 
@@ -163,7 +163,7 @@
 				}
 			}
 		// Processing users count by gender and age groups
-		$users = get_users_by_date($date, $lesson_id, 'archive');
+		$users = get_users_by_date($date, $lesson_id);
 		foreach ($users as $user) {
 			$gender = xprofile_get_field_data('gender', $user['user_id']);
 			if ($gender == "male")
@@ -184,7 +184,15 @@
 			elseif ($age >= 55)
 				$days[$date->format('Y-m-d')]['55plus']++;
 			
-		}
+			}
+			
+			$total_male += $days[$date->format('Y-m-d')]['male'];
+			$total_female += $days[$date->format('Y-m-d')]['female'];
+			$total_18_25 += $days[$date->format('Y-m-d')]['18-25'];
+			$total_25_34 += $days[$date->format('Y-m-d')]['25-34'];
+			$total_35_44 += $days[$date->format('Y-m-d')]['35-44'];
+			$total_45_54 += $days[$date->format('Y-m-d')]['45-54'];
+			$total_55plus += $days[$date->format('Y-m-d')]['55plus'];
 		
 		}
 
@@ -243,13 +251,13 @@
 				->setCellValue('C6', $total_webinarVS)
 				->setCellValue('C7', $total_archive)
 				->setCellValue('C8', $total_forum)
-				->setCellValue('C9', $days[$date->format('Y-m-d')]['male'])
-				->setCellValue('C10', $days[$date->format('Y-m-d')]['female'])
-				->setCellValue('C11', $days[$date->format('Y-m-d')]['18-24'])
-				->setCellValue('C12', $days[$date->format('Y-m-d')]['25-34'])
-				->setCellValue('C13', $days[$date->format('Y-m-d')]['34-45'])
-				->setCellValue('C14', $days[$date->format('Y-m-d')]['44-55'])
-				->setCellValue('C15', $days[$date->format('Y-m-d')]['55plus'])
+				->setCellValue('C9', $total_male)
+				->setCellValue('C10', $total_female)
+				->setCellValue('C11', $total_18_25)
+				->setCellValue('C12', $total_25_34)
+				->setCellValue('C13', $total_35_44)
+				->setCellValue('C14', $total_45_54)
+				->setCellValue('C15', $total_55plus)
 				;
 
 	// Add single day column
@@ -294,6 +302,13 @@
 				->setCellValue($letter.'6', $day['webinarVS'])
 				->setCellValue($letter.'7', $day['archive'])
 				->setCellValue($letter.'8', $day['forum'])
+				->setCellValue($letter.'9', $day['male'])
+				->setCellValue($letter.'10', $day['female'])
+				->setCellValue($letter.'11', $day['18-24'])
+				->setCellValue($letter.'12', $day['25-34'])
+				->setCellValue($letter.'13', $day['35-44'])
+				->setCellValue($letter.'14', $day['45-54'])
+				->setCellValue($letter.'15', $day['55plus'])
 				;
 	}
 
@@ -335,8 +350,9 @@ function get_statistics($the_date, $lesson_id){
 
 
 function get_users_by_date($the_date, $lesson_id){
+	global $wpdb;
 	
-	return $wpdb->get_results('SELECT user_id FROM wp_namaste_history WHERE (date = \''.$the_date->format('Y-m-d').'\' AND for_item_id ='.$lesson_id.')', ARRAY_A);	
+	return $wpdb->get_results('SELECT user_id FROM wp_namaste_history WHERE (date = \''.$the_date->format('Y-m-d').'\' AND for_item_id ='.$lesson_id.' GROUP BY user_id)', ARRAY_A);	
 	
 }
 
